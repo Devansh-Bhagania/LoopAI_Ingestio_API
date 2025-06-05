@@ -3,11 +3,10 @@ import { BatchStatus } from '../types';
 
 const sequelize = new Sequelize({
   dialect: 'postgres',
-  host: '',
-  host: '',
+  host: 'db.aksbefowkaxukxvqrxdj.supabase.co',
   port: 5432,
   username: 'postgres',
-  password: '',
+  password: 'yHx95_9FkYEY?xW',
   database: 'postgres',
   dialectOptions: {
     ssl: {
@@ -15,7 +14,13 @@ const sequelize = new Sequelize({
       rejectUnauthorized: false
     }
   },
-  logging: false
+  logging: console.log,
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
 });
 
 export class Ingestion extends Model {
