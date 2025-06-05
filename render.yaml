@@ -6,4 +6,15 @@ services:
     startCommand: npm start
     envVars:
       - key: NODE_ENV
-        value: production 
+        value: production
+      - key: DATABASE_HOST
+        value: db.aksbefowkaxukxvqrxdj.supabase.co
+      - key: DATABASE_PORT
+        value: 5432
+      - key: DATABASE_NAME
+        value: postgres
+      - key: DATABASE_USER
+        value: postgres
+      - key: DATABASE_PASSWORD
+        value: yHx95_9FkYEY?xW
+    healthCheckPath: /health 

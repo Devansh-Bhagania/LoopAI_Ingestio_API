@@ -20,6 +20,10 @@ const sequelize = new Sequelize({
     min: 0,
     acquire: 30000,
     idle: 10000
+  },
+  retry: {
+    max: 5,
+    match: [/Deadlock/i, /ConnectionError/i, /SequelizeConnectionError/i, /SequelizeConnectionRefusedError/i, /SequelizeHostNotFoundError/i, /SequelizeHostNotReachableError/i, /SequelizeInvalidConnectionError/i, /SequelizeConnectionTimedOutError/i, /TimeoutError/i, /SequelizeConnectionAcquireTimeoutError/i]
   }
 });
 
@@ -98,16 +102,26 @@ Ingestion.hasMany(Batch, { foreignKey: 'ingestion_id' });
 Batch.belongsTo(Ingestion, { foreignKey: 'ingestion_id' });
 
 export const syncDatabase = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
-    
-    // Sync all models
-    await sequelize.sync({ alter: true });
-    console.log('Database synchronized successfully.');
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-    throw error;
+  let retries = 5;
+  while (retries > 0) {
+    try {
+      await sequelize.authenticate();
+      console.log('Database connection has been established successfully.');
+      
+      // Sync all models
+      await sequelize.sync({ alter: true });
+      console.log('Database synchronized successfully.');
+      return;
+    } catch (error) {
+      console.error(`Database connection attempt failed. Retries left: ${retries - 1}`);
+      retries--;
+      if (retries === 0) {
+        console.error('Unable to connect to the database after multiple attempts:', error);
+        throw error;
+      }
+      // Wait for 5 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
   }
 };
 
