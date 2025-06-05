@@ -1,13 +1,14 @@
+const { v4: uuidv4 } = require('uuid');
 const {
   createNewIngestion,
   createNewBatch,
   updateBatchStatus,
   getIngestionStatus
-} = require('./database');
+} = require('../models');
 
 // Simple ingestion operations
 const createIngestion = async (request) => {
-  const ingestionId = Date.now().toString();
+  const ingestionId = uuidv4();
   
   // Create ingestion
   await createNewIngestion(ingestionId);

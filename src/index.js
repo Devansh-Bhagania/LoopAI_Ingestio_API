@@ -1,12 +1,24 @@
 const express = require('express');
 const cors = require('cors');
 const { createIngestion, getStatus } = require('./services/ingestion');
+const { initDatabase } = require('./models');
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Initialize database
+initDatabase().catch(error => {
+  console.error('Failed to initialize database:', error);
+  process.exit(1);
+});
+
 app.use(cors());
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy' });
+});
 
 // POST /ingest endpoint
 app.post('/ingest', async (req, res) => {

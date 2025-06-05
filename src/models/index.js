@@ -2,8 +2,7 @@
 const ingestions = new Map();
 const batches = new Map();
 
-// Simple functions for ingestion operations
-const createIngestion = async (ingestionId) => {
+const createNewIngestion = async (ingestionId) => {
   const ingestion = {
     ingestion_id: ingestionId,
     status: 'pending',
@@ -17,8 +16,7 @@ const findIngestion = async (ingestionId) => {
   return ingestions.get(ingestionId) || null;
 };
 
-// Simple functions for batch operations
-const createBatch = async (batchData) => {
+const createNewBatch = async (batchData) => {
   const batch = {
     batch_id: batchData.batch_id,
     ingestion_id: batchData.ingestion_id,
@@ -32,23 +30,20 @@ const createBatch = async (batchData) => {
 
 const findBatches = async (options) => {
   let results = Array.from(batches.values());
-  
   if (options.where && options.where.ingestion_id) {
-    results = results.filter(batch => 
-      batch.ingestion_id === options.where.ingestion_id
-    );
+    results = results.filter(batch => batch.ingestion_id === options.where.ingestion_id);
   }
-
   if (options.order) {
     const [field, direction] = options.order[0];
     results.sort((a, b) => {
+      const aValue = a[field];
+      const bValue = b[field];
       if (direction === 'ASC') {
-        return a[field] - b[field];
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       }
-      return b[field] - a[field];
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
     });
   }
-
   return results;
 };
 
@@ -58,10 +53,40 @@ const updateBatch = async (batchId, data) => {
     Object.assign(batch, data);
     batches.set(batchId, batch);
   }
-  return batch;
+  return batch || null;
 };
 
-// Simple database initialization
+const updateBatchStatus = async (batchId, status) => {
+  return updateBatch(batchId, { status });
+};
+
+const getIngestionStatus = async (ingestionId) => {
+  const ingestion = await findIngestion(ingestionId);
+  if (!ingestion) {
+    return null;
+  }
+  const batchList = await findBatches({
+    where: { ingestion_id: ingestionId },
+    order: [['created_at', 'ASC']]
+  });
+  return {
+    ingestion_id: ingestionId,
+    status: calculateOverallStatus(batchList),
+    batches: batchList
+  };
+};
+
+const calculateOverallStatus = (batches) => {
+  if (batches.length === 0) return 'pending';
+  if (batches.every(batch => batch.status === 'completed')) {
+    return 'completed';
+  }
+  if (batches.some(batch => batch.status === 'processing')) {
+    return 'processing';
+  }
+  return 'pending';
+};
+
 const initDatabase = async () => {
   try {
     console.log('In-memory database initialized successfully');
@@ -73,10 +98,12 @@ const initDatabase = async () => {
 };
 
 module.exports = {
-  createIngestion,
+  createNewIngestion,
   findIngestion,
-  createBatch,
+  createNewBatch,
   findBatches,
   updateBatch,
+  updateBatchStatus,
+  getIngestionStatus,
   initDatabase
 }; 
