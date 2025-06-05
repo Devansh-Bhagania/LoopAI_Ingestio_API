@@ -1,139 +1,149 @@
 # Data Ingestion API System
 
-A RESTful API system for handling data ingestion requests with priority-based processing and rate limiting.
+A robust data ingestion system built with Express.js and in-memory storage, featuring rate limiting, priority-based processing, and comprehensive status tracking.
 
 ## Features
 
-- Asynchronous batch processing
-- Priority-based queue management
-- Rate limiting (3 IDs per 5 seconds)
-- Status tracking for ingestion requests
-- Supabase PostgreSQL integration
+- **Rate Limited Processing**: Processes exactly 1 batch every 5 seconds
+- **Priority-Based Processing**: Supports HIGH, MEDIUM, and LOW priority levels
+- **In-Memory Storage**: Fast and efficient data storage with validation
+- **Comprehensive Status Tracking**: Detailed status tracking for both ingestions and batches
+- **Queue Management**: Automatic queue processing with priority sorting
+- **Health Monitoring**: Built-in health check endpoint
+- **Error Handling**: Robust error handling and validation
+- **Statistics**: Real-time system statistics and queue monitoring
 
-## Prerequisites
+## API Endpoints
 
-- Node.js (v14 or higher)
-- npm or yarn
-- Supabase account and project
+### 1. Create Ingestion
+```http
+POST /ingestion
+Content-Type: application/json
 
-## Setup
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd data-ingestion-api
+{
+  "ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "priority": "high"  // Optional: "high", "medium", or "low"
+}
 ```
 
-2. Install dependencies:
+Response:
+```json
+{
+  "ingestion_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "created_at": "2024-03-14T12:00:00.000Z"
+}
+```
+
+### 2. Get Ingestion Status
+```http
+GET /ingestion/{ingestion_id}
+```
+
+Response:
+```json
+{
+  "ingestion_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "processing",
+  "batches": [
+    {
+      "batch_id": "batch-1",
+      "status": "completed",
+      "ids": [1, 2, 3],
+      "created_at": "2024-03-14T12:00:00.000Z"
+    },
+    {
+      "batch_id": "batch-2",
+      "status": "processing",
+      "ids": [4, 5, 6],
+      "created_at": "2024-03-14T12:00:05.000Z"
+    }
+  ],
+  "created_at": "2024-03-14T12:00:00.000Z",
+  "updated_at": "2024-03-14T12:00:05.000Z"
+}
+```
+
+### 3. Health Check
+```http
+GET /health
+```
+
+Response:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-03-14T12:00:00.000Z"
+}
+```
+
+## Rate Limiting
+
+The system implements strict rate limiting:
+- Maximum 1 batch processed every 5 seconds
+- Processing delays based on priority:
+  - High priority: 1 second processing time
+  - Medium priority: 2 seconds processing time
+  - Low priority: 3 seconds processing time
+
+## Priority Processing
+
+Batches are processed in the following order:
+1. Priority level (HIGH > MEDIUM > LOW)
+2. Creation time (FIFO within same priority)
+
+## System Statistics
+
+The system provides real-time statistics including:
+- Total number of ingestions
+- Total number of batches
+- Status counts (pending, processing, completed)
+- Current queue length
+- Processing status
+
+## Getting Started
+
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Create a `.env` file in the root directory with the following variables:
-```
-PORT=5000
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-```
-
-4. Create the following tables in your Supabase database:
-
-```sql
--- Create ingestions table
-CREATE TABLE ingestions (
-  ingestion_id TEXT PRIMARY KEY,
-  status TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create batches table
-CREATE TABLE batches (
-  batch_id TEXT PRIMARY KEY,
-  ingestion_id TEXT REFERENCES ingestions(ingestion_id),
-  ids INTEGER[] NOT NULL,
-  status TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-5. Build the project:
-```bash
-npm run build
-```
-
-## Running the Application
-
-Development mode:
-```bash
-npm run dev
-```
-
-Production mode:
+2. Start the server:
 ```bash
 npm start
 ```
 
-## API Endpoints
+The server will start on port 3000 by default. You can change this by setting the `PORT` environment variable.
 
-### POST /ingest
-Creates a new ingestion request.
+## Environment Variables
 
-Request body:
-```json
-{
-  "ids": [1, 2, 3, 4, 5],
-  "priority": "HIGH"
-}
-```
-
-Response:
-```json
-{
-  "ingestion_id": "uuid-string"
-}
-```
-
-### GET /status/:ingestionId
-Retrieves the status of an ingestion request.
-
-Response:
-```json
-{
-  "ingestion_id": "uuid-string",
-  "status": "triggered",
-  "batches": [
-    {
-      "batch_id": "uuid-string",
-      "ids": [1, 2, 3],
-      "status": "completed"
-    }
-  ]
-}
-```
-
-## Testing
-
-Run the test suite:
-```bash
-npm test
-```
-
-## Implementation Details
-
-- The system processes IDs in batches of 3
-- Rate limiting is enforced (1 batch per 5 seconds)
-- Priority levels: HIGH, MEDIUM, LOW
-- Processing order is determined by priority and creation time
-- Status tracking for each batch and overall ingestion
-- Asynchronous processing using a queue system
+- `PORT`: Server port (default: 3000)
 
 ## Error Handling
 
-The API includes validation for:
-- Request format
-- ID range (1 to 10^9+7)
-- Priority values
-- Non-existent ingestion IDs
+The system includes comprehensive error handling:
+- Input validation
+- Rate limit enforcement
+- Priority validation
+- Status validation
+- Database state validation
+
+## Testing
+
+You can test the API using curl or any HTTP client:
+
+```bash
+# Create an ingestion
+curl -X POST http://localhost:3000/ingestion \
+  -H "Content-Type: application/json" \
+  -d '{"ids": [1,2,3,4,5], "priority": "high"}'
+
+# Check ingestion status
+curl http://localhost:3000/ingestion/{ingestion_id}
+
+# Check system health
+curl http://localhost:3000/health
+```
 
 ## License
 
