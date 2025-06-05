@@ -1,0 +1,67 @@
+import express from 'express';
+import cors from 'cors';
+import { IngestionService } from './services/ingestion';
+import { IngestionRequest } from './types';
+import { syncDatabase } from './models';
+
+const app = express();
+const port = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+// Initialize database connection
+syncDatabase()
+  .then(() => {
+    console.log('Database initialized successfully');
+  })
+  .catch((error) => {
+    console.error('Failed to initialize database:', error);
+    process.exit(1);
+  });
+
+const ingestionService = new IngestionService();
+
+// POST /ingest endpoint
+app.post('/ingest', async (req, res) => {
+  try {
+    const request: IngestionRequest = req.body;
+    
+    // Validate request
+    if (!request.ids || !Array.isArray(request.ids) || !request.priority) {
+      return res.status(400).json({ error: 'Invalid request format' });
+    }
+
+    // Validate IDs
+    if (!request.ids.every(id => Number.isInteger(id) && id >= 1 && id <= 1000000007)) {
+      return res.status(400).json({ error: 'Invalid ID range' });
+    }
+
+    const ingestionId = await ingestionService.createIngestion(request);
+    res.json({ ingestion_id: ingestionId });
+  } catch (error) {
+    console.error('Error creating ingestion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /status/:ingestionId endpoint
+app.get('/status/:ingestionId', async (req, res) => {
+  try {
+    const { ingestionId } = req.params;
+    const status = await ingestionService.getIngestionStatus(ingestionId);
+    
+    if (!status) {
+      return res.status(404).json({ error: 'Ingestion not found' });
+    }
+
+    res.json(status);
+  } catch (error) {
+    console.error('Error getting ingestion status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+}); 
