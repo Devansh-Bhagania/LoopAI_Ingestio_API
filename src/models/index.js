@@ -106,6 +106,7 @@ class InMemoryDB {
       ingestion_id: batchData.ingestion_id,
       ids: batchData.ids,
       status: batchData.status || 'pending',
+      priority: batchData.priority || 'medium',
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -116,7 +117,7 @@ class InMemoryDB {
     // Add to processing queue
     this.processingQueue.push({
       batchId: batch.batch_id,
-      priority: batchData.priority || 'medium',
+      priority: batch.priority,
       createdAt: new Date()
     });
 
@@ -154,16 +155,26 @@ class InMemoryDB {
       const batch = this.batches.get(batchId);
 
       if (batch && batch.status === 'pending') {
-        // Update batch status to processing
-        await this.updateBatchStatus(batchId, 'processing');
-        
-        // Simulate processing delay based on priority
-        const delay = batch.priority === 'high' ? 1000 : batch.priority === 'medium' ? 2000 : 3000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // Update batch status to completed
-        await this.updateBatchStatus(batchId, 'completed');
-        this.lastProcessedTime = Date.now();
+        try {
+          // Update batch status to processing
+          await this.updateBatchStatus(batchId, 'processing');
+          
+          // Simulate processing delay based on priority
+          const delay = batch.priority === 'high' ? 1000 : batch.priority === 'medium' ? 2000 : 3000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // Update batch status to completed
+          await this.updateBatchStatus(batchId, 'completed');
+          this.lastProcessedTime = Date.now();
+        } catch (error) {
+          console.error('Error processing batch:', error);
+          // If there's an error, put the batch back in the queue
+          this.processingQueue.push({
+            batchId,
+            priority: batch.priority,
+            createdAt: new Date()
+          });
+        }
       }
     }
     this.isProcessing = false;

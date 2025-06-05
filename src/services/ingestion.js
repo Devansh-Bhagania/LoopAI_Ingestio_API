@@ -24,15 +24,13 @@ const createIngestion = async (request) => {
       ingestion_id: ingestionId,
       ids: batchIds,
       status: 'pending',
+      priority: request.priority,
       created_at: new Date()
     };
     
     await createNewBatch(batch);
     batches.push(batch);
   }
-
-  // Process batches
-  processBatches(batches, request.priority);
 
   return ingestionId;
 };
